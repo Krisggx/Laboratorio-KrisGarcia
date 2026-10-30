@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interpolación de Newton</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1d2330;
+    --muted: #5d6677;
+    --border: #d9dde5;
+    --accent: #2f6fde;
+    --accent-text: #ffffff;
+    --ok: #1f8a4c;
+    --err: #c0392b;
+    --diag: #e6efff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171d;
+      --card: #1d2129;
+      --text: #e7eaf0;
+      --muted: #9aa3b2;
+      --border: #333a47;
+      --accent: #5b8ff0;
+      --accent-text: #0d1117;
+      --ok: #4cc382;
+      --err: #ff7b6b;
+      --diag: #22324f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.1rem; margin: 0 0 12px; }
+  p.sub { color: var(--muted); margin: 0 0 24px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  label { color: var(--muted); font-size: 0.95rem; }
+  input {
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    width: 110px;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button {
+    font: inherit;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    background: var(--accent);
+    color: var(--accent-text);
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button.sec { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; min-width: 100%; }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: center;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  th { background: var(--bg); font-weight: 600; }
+  td.diag { background: var(--diag); font-weight: 700; }
+  td input { width: 100%; min-width: 80px; }
+  .formula {
+    font-family: Consolas, "Courier New", monospace;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .error { color: var(--err); font-weight: 600; margin-top: 10px; }
+  .ok { color: var(--ok); }
+  .hidden { display: none; }
+  ul { margin: 0; padding-left: 20px; }
+  .note { color: var(--muted); font-size: 0.9rem; margin-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Interpolación polinomial de Newton</h1>
+  <p class="sub">Método de diferencias divididas. Ingrese los puntos y presione <b>Calcular</b>.</p>
+
+  <section class="card">
+    <h2>1. Datos</h2>
+    <div class="row" style="margin-bottom:12px">
+      <label for="n">Cantidad de puntos:</label>
+      <input id="n" type="number" min="2" max="15" value="4" style="width:80px">
+      <button class="sec" id="btnGenerar">Generar tabla</button>
+      <button class="sec" id="btnEjemplo">Cargar ejemplo</button>
+    </div>
+    <div class="scroll">
+      <table id="tablaEntrada"></table>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button id="btnCalcular">Calcular</button>
+    </div>
+    <div id="error" class="error"></div>
+  </section>
+
+  <div id="resultados" class="hidden">
+    <section class="card">
+      <h2>2. Tabla de diferencias divididas</h2>
+      <div class="scroll"><table id="tablaDD"></table></div>
+      <p class="note">Las celdas resaltadas (primera fila) son los coeficientes b<sub>k</sub> del polinomio.</p>
+    </section>
+
+    <section class="card">
+      <h2>3. Coeficientes</h2>
+      <ul id="coeficientes"></ul>
+    </section>
+
+    <section class="card">
+      <h2>4. Polinomio de Newton</h2>
+      <div class="formula" id="polNewton"></div>
+      <h2 style="margin-top:16px">Polinomio desarrollado</h2>
+      <div class="formula" id="polEstandar"></div>
+    </section>
+
+    <section class="card">
+      <h2>5. Verificación en los puntos dados</h2>
+      <ul id="verificacion"></ul>
+    </section>
+
+    <section class="card">
+      <h2>6. Evaluar P(x)</h2>
+      <div class="row">
+        <label for="xEval">x =</label>
+        <input id="xEval" type="text" value="">
+        <button id="btnEvaluar">Evaluar</button>
+        <span id="resEval" style="font-weight:600"></span>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+  // ---------- Utilidades ----------
+  function leerNumero(texto) {
+    const t = String(texto).trim().replace(",", ".");
+    if (t === "") return NaN;
+    return Number(t);
+  }
+
+  function fmt(v) {
+    if (Math.abs(v) < 1e-12) v = 0;
+    if (Math.abs(v - Math.round(v)) < 1e-9) return String(Math.round(v));
+    return v.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+  }
+
+  // ---------- Método de Newton ----------
+  // tabla[j][i] = f[x_i, ..., x_{i+j}]; la columna 0 son los valores de y
+  function diferenciasDivididas(xs, ys) {
+    const n = xs.length;
+    const tabla = [ys.slice()];
+    for (let j = 1; j < n; j++) {
+      const anterior = tabla[j - 1];
+      const columna = [];
+      for (let i = 0; i < n - j; i++) {
+        columna.push((anterior[i + 1] - anterior[i]) / (xs[i + j] - xs[i]));
+      }
+      tabla.push(columna);
+    }
+    return tabla;
+  }
+
+  function evaluarNewton(xs, coef, x) {
+    let r = coef[coef.length - 1];
+    for (let k = coef.length - 2; k >= 0; k--) {
+      r = r * (x - xs[k]) + coef[k];
+    }
+    return r;
+  }
+
+  // Multiplica p (coeficientes de menor a mayor grado) por (x - c)
+  function multiplicarPorBinomio(p, c) {
+    const r = new Array(p.length + 1).fill(0);
+    p.forEach((a, i) => {
+      r[i] -= c * a;
+      r[i + 1] += a;
+    });
+    return r;
+  }
+
+  // Convierte la forma de Newton a a0 + a1 x + a2 x^2 + ...
+  function polinomioDesarrollado(xs, coef) {
+    const n = coef.length;
+    const total = new Array(n).fill(0);
+    let base = [1];
+    for (let k = 0; k < n; k++) {
+      base.forEach((a, i) => { total[i] += coef[k] * a; });
+      if (k < n - 1) base = multiplicarPorBinomio(base, xs[k]);
+    }
+    return total;
+  }
+
+  // ---------- Texto de los polinomios ----------
+  function textoNewton(xs, coef) {
+    let texto = "";
+    coef.forEach((b, k) => {
+      let factores = "";
+      for (let i = 0; i < k; i++) {
+        const xi = xs[i];
+        if (xi === 0) factores += "(x)";
+        else if (xi > 0) factores += `(x − ${fmt(xi)})`;
+        else factores += `(x + ${fmt(-xi)})`;
+      }
+      const valor = fmt(Math.abs(b));
+      if (k === 0) texto = (b < 0 ? "−" : "") + valor + factores;
+      else texto += ` ${b < 0 ? "−" : "+"} ${valor}${factores}`;
+    });
+    return "P(x) = " + texto;
+  }
+
+  function textoEstandar(a) {
+    const partes = [];
+    for (let g = a.length - 1; g >= 0; g--) {
+      const c = a[g];
+      if (Math.abs(c) < 1e-12) continue;
+      const valor = fmt(Math.abs(c));
+      let termino;
+      if (g === 0) termino = valor;
+      else termino = (valor === "1" ? "" : valor) + (g === 1 ? "x" : `x<sup>${g}</sup>`);
+      partes.push([c < 0 ? "−" : "+", termino]);
+    }
+    if (partes.length === 0) return "P(x) = 0";
+    let texto = (partes[0][0] === "−" ? "−" : "") + partes[0][1];
+    for (let i = 1; i < partes.length; i++) texto += ` ${partes[i][0]} ${partes[i][1]}`;
+    return "P(x) = " + texto;
+  }
+
+  // ---------- Interfaz ----------
+  const $ = (id) => document.getElementById(id);
+  let modelo = null; // { xs, coef }
+
+  function generarEntrada(valores) {
+    let n = parseInt($("n").value, 10);
+    if (!(n >= 2)) n = 2;
+    if (n > 15) n = 15;
+    $("n").value = n;
+    let html = "<tr><th>i</th><th>x<sub>i</sub></th><th>f(x<sub>i</sub>)</th></tr>";
+    for (let i = 0; i < n; i++) {
+      const x = valores ? valores[i][0] : "";
+      const y = valores ? valores[i][1] : "";
+      html += `<tr><td>${i}</td>
+        <td><input type="text" id="x${i}" value="${x}" inputmode="decimal"></td>
+        <td><input type="text" id="y${i}" value="${y}" inputmode="decimal"></td></tr>`;
+    }
+    $("tablaEntrada").innerHTML = html;
+  }
+
+  function calcular() {
+    $("error").textContent = "";
+    const n = $("tablaEntrada").rows.length - 1;
+    const xs = [], ys = [];
+    for (let i = 0; i < n; i++) {
+      const x = leerNumero($("x" + i).value);
+      const y = leerNumero($("y" + i).value);
+      if (!isFinite(x) || !isFinite(y)) {
+        $("error").textContent = `Falta un valor o es inválido en la fila ${i}.`;
+        $("resultados").classList.add("hidden");
+        return;
+      }
+      if (xs.includes(x)) {
+        $("error").textContent = `El valor x = ${fmt(x)} está repetido. Los x deben ser distintos.`;
+        $("resultados").classList.add("hidden");
+        return;
+      }
+      xs.push(x);
+      ys.push(y);
+    }
+
+    const tabla = diferenciasDivididas(xs, ys);
+    const coef = tabla.map((col) => col[0]);
+    modelo = { xs, coef };
+
+    // Tabla de diferencias divididas
+    let html = "<tr><th>i</th><th>x<sub>i</sub></th><th>f[x<sub>i</sub>]</th>";
+    for (let j = 1; j < n; j++) html += `<th>Orden ${j}</th>`;
+    html += "</tr>";
+    for (let i = 0; i < n; i++) {
+      html += `<tr><td>${i}</td><td>${fmt(xs[i])}</td>`;
+      for (let j = 0; j < n; j++) {
+        if (i < tabla[j].length) {
+          html += `<td${i === 0 ? ' class="diag"' : ""}>${fmt(tabla[j][i])}</td>`;
+        } else {
+          html += "<td></td>";
+        }
+      }
+      html += "</tr>";
+    }
+    $("tablaDD").innerHTML = html;
+
+    $("coeficientes").innerHTML = coef
+      .map((b, k) => `<li>b<sub>${k}</sub> = ${fmt(b)}</li>`).join("");
+
+    $("polNewton").textContent = textoNewton(xs, coef) + `   (grado ${n - 1})`;
+    $("polEstandar").innerHTML = textoEstandar(polinomioDesarrollado(xs, coef));
+
+    $("verificacion").innerHTML = xs.map((x, i) => {
+      const p = evaluarNewton(xs, coef, x);
+      const bien = Math.abs(p - ys[i]) < 1e-6;
+      return `<li>P(${fmt(x)}) = ${fmt(p)} &nbsp; (f = ${fmt(ys[i])}) ` +
+        `<span class="ok">${bien ? "✔" : ""}</span></li>`;
+    }).join("");
+
+    $("resEval").textContent = "";
+    $("resultados").classList.remove("hidden");
+  }
+
+  function evaluar() {
+    if (!modelo) return;
+    const x = leerNumero($("xEval").value);
+    if (!isFinite(x)) {
+      $("resEval").textContent = "Ingrese un número válido.";
+      return;
+    }
+    $("resEval").textContent = `P(${fmt(x)}) = ${fmt(evaluarNewton(modelo.xs, modelo.coef, x))}`;
+  }
+
+  $("btnGenerar").addEventListener("click", () => generarEntrada());
+  $("btnEjemplo").addEventListener("click", () => {
+    $("n").value = 4;
+    generarEntrada([[1, 1], [2, 8], [3, 27], [4, 64]]);
+    calcular();
+  });
+  $("btnCalcular").addEventListener("click", calcular);
+  $("btnEvaluar").addEventListener("click", evaluar);
+  $("xEval").addEventListener("keydown", (e) => { if (e.key === "Enter") evaluar(); });
+
+  generarEntrada();
+</script>
+</body>
+</html>
